@@ -14,8 +14,8 @@ public:
 
 private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
-    // One labelled rotary knob bound to an APVTS parameter.
     struct Knob
     {
         juce::Slider slider;
@@ -27,7 +27,18 @@ private:
 
     AmpForgeAudioProcessor& processor;
 
-    Knob drive, bass, mid, treble, presence, cab, master;
+    // Amp controls.
+    Knob drive, bass, mid, treble, presence, master;
+    juce::ToggleButton cabButton { "Cab" };
+    std::unique_ptr<ButtonAttachment> cabAttachment;
+
+    // DS-1 pedal controls.
+    Knob dist, pedalTone, pedalLevel;
+    juce::ToggleButton ds1Button { "DS-1" };
+    std::unique_ptr<ButtonAttachment> ds1Attachment;
+
+    // Presets.
+    juce::ComboBox presetBox;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AmpForgeAudioProcessorEditor)
 };

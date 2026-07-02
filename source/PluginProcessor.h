@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/AmpEngine.h"
+#include "dsp/DistortionPedal.h"
 
 class AmpForgeAudioProcessor : public juce::AudioProcessor
 {
@@ -32,13 +33,19 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    // Preset support (driven from the editor's menu).
+    struct Preset { juce::String name; std::map<juce::String, float> values; };
+    static const std::vector<Preset>& getPresets();
+    void applyPreset (int index);
+
     // Public so the editor can attach controls to it.
     juce::AudioProcessorValueTreeState apvts;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    AmpEngine engine;
+    DistortionPedal pedal;
+    AmpEngine       engine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AmpForgeAudioProcessor)
 };
