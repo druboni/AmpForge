@@ -10,6 +10,7 @@ namespace ids
     constexpr auto presence = "presence";
     constexpr auto master   = "master";
     constexpr auto cabOn    = "cab_on";
+    constexpr auto namOn    = "nam_on";
 
     constexpr auto ds1On    = "ds1_on";
     constexpr auto ds1Dist  = "ds1_dist";
@@ -67,6 +68,8 @@ AmpForgeAudioProcessor::createParameterLayout()
         juce::NormalisableRange<float> (-40.0f, 12.0f, 0.1f), -6.0f, Attrs().withLabel ("dB")));
     params.push_back (std::make_unique<BoolP> (
         juce::ParameterID { ids::cabOn, 1 }, "Cabinet", true));
+    params.push_back (std::make_unique<BoolP> (
+        juce::ParameterID { ids::namOn, 1 }, "NAM Amp", false));
 
     return { params.begin(), params.end() };
 }
@@ -95,6 +98,8 @@ void AmpForgeAudioProcessor::applyPreset (int index)
 
 void AmpForgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    currentSampleRate = sampleRate;
+
     juce::dsp::ProcessSpec spec;
     spec.sampleRate       = sampleRate;
     spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
@@ -102,6 +107,9 @@ void AmpForgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 
     pedal.prepare (spec);
     engine.prepare (spec);
+    cabinet.prepare (spec);
+    nam.prepare (sampleRate, samplesPerBlock);
+    masterSmoothed.reset (sampleRate, 0.02);
 
     setLatencySamples (juce::roundToInt (pedal.getLatencySamples() + engine.getLatencySamples()));
 }
@@ -154,12 +162,33 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     engine.setMid       (apvts.getRawParameterValue (ids::mid)->load());
     engine.setTreble    (apvts.getRawParameterValue (ids::treble)->load());
     engine.setPresence  (apvts.getRawParameterValue (ids::presence)->load());
-    engine.setMasterDb  (apvts.getRawParameterValue (ids::master)->load());
-    engine.setCabBypass (apvts.getRawParameterValue (ids::cabOn)->load() < 0.5f);
+    masterSmoothed.setTargetValue (juce::Decibels::decibelsToGain (
+        apvts.getRawParameterValue (ids::master)->load()));
+
+    const bool cabBypass = apvts.getRawParameterValue (ids::cabOn)->load() < 0.5f;
+    const bool namWanted = apvts.getRawParameterValue (ids::namOn)->load() > 0.5f;
 
     juce::dsp::AudioBlock<float> block (buffer);
-    pedal.process (block);   // stompbox first, into the amp
-    engine.processBlock (block);
+
+    // Chain: DS-1 pedal -> [ NAM capture OR algorithmic amp ] -> cabinet -> master.
+    pedal.process (block);
+
+    // The NAM capture already models a whole amp, so when it runs it replaces
+    // the algorithmic amp rather than stacking with it.
+    const bool namRan = namWanted && nam.process (block);
+    if (! namRan)
+        engine.processBlock (block);
+
+    cabinet.process (block, cabBypass);
+
+    // Master.
+    const int numSamples = buffer.getNumSamples();
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float g = masterSmoothed.getNextValue();
+        for (int ch = 0; ch < numOut; ++ch)
+            buffer.setSample (ch, i, buffer.getSample (ch, i) * g);
+    }
 }
 
 juce::AudioProcessorEditor* AmpForgeAudioProcessor::createEditor()

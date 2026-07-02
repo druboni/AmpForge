@@ -10,11 +10,26 @@ input
   → [ DS-1 style distortion pedal ]   (optional, switchable)
         input HP → Dist gain → hard diode clip (4x oversampled)
         → tone tilt + mid notch → Level
-  → AMP
-        drive (+ power-supply sag) → tube waveshaper (4x oversampled)
-        → tone stack (Bass / Mid / Treble) → Presence
-        → cabinet (convolution IR) → Master
+  → AMP  — one of:
+        (a) NAM capture (.nam)     neural model of a real amp (tone3000.com)
+        (b) algorithmic amp        drive (+sag) → cascaded tube waveshaper
+                                   (4x oversampled) → tone stack → Presence
+  → cabinet (convolution IR)   (shared by both amp paths, switchable)
+  → Master
 ```
+
+## NAM amp captures (Neural Amp Modeler)
+
+AmpForge can load **`.nam` captures** — neural-network models of real amplifiers,
+e.g. the thousands of free captures at **[tone3000.com](https://www.tone3000.com/)**.
+Click **Load NAM…**, pick a `.nam` file, and the **NAM Amp** toggle turns on;
+the capture then replaces the built-in algorithmic amp.
+
+- Powered by the open-source [NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore) (MIT), fetched + built by CMake.
+- Models are **mono** and have an expected sample rate (usually 48 kHz). For the
+  most accurate tone, run your DAW at the model's rate — the UI warns if they differ.
+- "Amp only" captures pair well with a cab IR (keep the Cabinet on); "Amp + Cab"
+  captures already include the speaker, so you may want the Cabinet off.
 
 Both non-linear stages are **4× oversampled** to keep aliasing out of the
 distortion, and the plugin reports its processing latency so the DAW stays in

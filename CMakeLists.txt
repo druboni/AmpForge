@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.22)
 
 project(AmpForge VERSION 0.1.0 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+# NAM core requires C++20, so the whole project uses it.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ---------------------------------------------------------------------------
@@ -16,7 +17,43 @@ FetchContent_Declare(
     GIT_TAG        8.0.4
     GIT_SHALLOW    TRUE
 )
-FetchContent_MakeAvailable(JUCE)
+
+# ---------------------------------------------------------------------------
+# Fetch Neural Amp Modeler core + Eigen so AmpForge can load .nam captures
+# (e.g. from tone3000.com). We only need the sources, not their own CMake
+# builds/tests, so SOURCE_SUBDIR points at a non-existent dir to skip
+# add_subdirectory. GIT_SUBMODULES "" avoids pulling NAM's heavy submodules
+# (we supply Eigen ourselves; nlohmann json is checked into the NAM repo).
+# ---------------------------------------------------------------------------
+FetchContent_Declare(
+    namcore
+    GIT_REPOSITORY https://github.com/sdatkinson/NeuralAmpModelerCore.git
+    GIT_TAG        v0.5.4
+    GIT_SHALLOW    TRUE
+    GIT_SUBMODULES ""
+    SOURCE_SUBDIR  does-not-exist
+)
+# Pinned to the exact Eigen commit NAM v0.5.4 uses. The 3.4.0 release is too
+# old (missing Eigen::placeholders::lastN that NAM's lstm.h needs).
+FetchContent_Declare(
+    Eigen
+    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+    GIT_TAG        bc3b39870ecb690a623a3f49149a358b95c5781d
+    SOURCE_SUBDIR  does-not-exist
+)
+FetchContent_MakeAvailable(JUCE namcore Eigen)
+
+# Build the NAM core DSP as a static library we link into the plugin.
+file(GLOB NAM_SOURCES
+    "${namcore_SOURCE_DIR}/NAM/*.cpp"
+    "${namcore_SOURCE_DIR}/NAM/wavenet/*.cpp")
+add_library(nam STATIC ${NAM_SOURCES})
+target_include_directories(nam SYSTEM PUBLIC
+    "${namcore_SOURCE_DIR}/NAM"
+    "${namcore_SOURCE_DIR}/Dependencies/nlohmann"
+    "${eigen_SOURCE_DIR}")
+target_compile_features(nam PUBLIC cxx_std_20)
+target_compile_definitions(nam PUBLIC NAM_ENABLE_A2_FAST)
 
 # ---------------------------------------------------------------------------
 # The plugin target. Builds VST3, AU and a Standalone app.
@@ -49,6 +86,7 @@ target_compile_definitions(AmpForge PUBLIC
 )
 
 target_link_libraries(AmpForge PRIVATE
+    nam
     juce::juce_audio_utils
     juce::juce_dsp
     PUBLIC
