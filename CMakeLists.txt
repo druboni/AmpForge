@@ -59,8 +59,8 @@ target_compile_definitions(nam PUBLIC NAM_ENABLE_A2_FAST)
 # The plugin target. Builds VST3, AU and a Standalone app.
 # ---------------------------------------------------------------------------
 juce_add_plugin(AmpForge
-    COMPANY_NAME              "druboni"
-    PLUGIN_MANUFACTURER_CODE  Drbn        # 4 chars, one uppercase
+    COMPANY_NAME              "Brian Smith"
+    PLUGIN_MANUFACTURER_CODE  Bsmi        # 4 chars, one uppercase
     PLUGIN_CODE               Ampf        # 4 chars, one uppercase; unique per plugin
     FORMATS                   VST3 AU Standalone
     PRODUCT_NAME              "AmpForge"
