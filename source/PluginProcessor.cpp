@@ -123,6 +123,25 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
 
+    // A guitar is a mono source arriving on a single input channel. Sum the
+    // inputs to mono and spread across all channels so the amp is centered
+    // instead of only coming out of one side.
+    const int numIn  = getTotalNumInputChannels();
+    const int numOut = getTotalNumOutputChannels();
+    if (numIn > 0 && numOut > 1)
+    {
+        const int numSamples = buffer.getNumSamples();
+        for (int i = 0; i < numSamples; ++i)
+        {
+            float mono = 0.0f;
+            for (int ch = 0; ch < numIn; ++ch)
+                mono += buffer.getSample (ch, i);
+
+            for (int ch = 0; ch < numOut; ++ch)
+                buffer.setSample (ch, i, mono);
+        }
+    }
+
     // Pedal parameters.
     pedal.setEnabled (apvts.getRawParameterValue (ids::ds1On)->load() > 0.5f);
     pedal.setDist    (apvts.getRawParameterValue (ids::ds1Dist)->load());

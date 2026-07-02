@@ -30,6 +30,10 @@ juce_add_plugin(AmpForge
     IS_SYNTH                  FALSE
     NEEDS_MIDI_INPUT          FALSE
     NEEDS_MIDI_OUTPUT         FALSE
+    # Required so the macOS standalone can receive live audio input (guitar).
+    # Without this the OS hands the app silence and you hear nothing.
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT    "AmpForge needs audio input access to process your guitar signal."
     COPY_PLUGIN_AFTER_BUILD   TRUE        # install into the user plugin folders on build
 )
 
