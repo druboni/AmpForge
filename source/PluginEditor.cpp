@@ -23,12 +23,23 @@ AmpForgeAudioProcessorEditor::AmpForgeAudioProcessorEditor (AmpForgeAudioProcess
     : AudioProcessorEditor (&p), processor (p)
 {
     // Amp knobs.
+    addKnob (gate,     "gate",     "Gate");
     addKnob (drive,    "drive",    "Drive");
     addKnob (bass,     "bass",     "Bass");
     addKnob (mid,      "mid",      "Mid");
     addKnob (treble,   "treble",   "Treble");
     addKnob (presence, "presence", "Presence");
     addKnob (master,   "master",   "Master");
+
+    // Amp model menu.
+    addAndMakeVisible (ampBox);
+    ampBox.addItemList ({ "Modern", "Fender Clean", "Plexi", "JCM800", "Rectifier" }, 1);
+    ampAttachment = std::make_unique<ComboBoxAttachment> (processor.apvts, "amp_model", ampBox);
+
+    // Cab voicing menu.
+    addAndMakeVisible (cabBox);
+    cabBox.addItemList ({ "Modern 4x12", "Vintage 4x12" }, 1);
+    cabModelAttachment = std::make_unique<ComboBoxAttachment> (processor.apvts, "cab_model", cabBox);
 
     // Pedal knobs.
     addKnob (dist,       "ds1_dist",  "Dist");
@@ -119,7 +130,7 @@ AmpForgeAudioProcessorEditor::AmpForgeAudioProcessorEditor (AmpForgeAudioProcess
             processor.applyPreset (idx);
     };
 
-    setSize (sideMargin * 2 + 6 * knobSize + 5 * knobGap, pedalTop + pedalH + sideMargin);
+    setSize (sideMargin * 2 + 7 * knobSize + 6 * knobGap, pedalTop + pedalH + sideMargin);
 }
 
 void AmpForgeAudioProcessorEditor::addKnob (Knob& knob,
@@ -182,11 +193,12 @@ void AmpForgeAudioProcessorEditor::paint (juce::Graphics& g)
 
 void AmpForgeAudioProcessorEditor::resized()
 {
-    // Preset menu in the header, right side.
+    // Header menus, right side: Amp model + Presets.
     presetBox.setBounds (getWidth() - sideMargin - 150, 16, 150, 26);
+    ampBox.setBounds (getWidth() - sideMargin - 150 - 8 - 150, 16, 150, 26);
 
     // Amp knob row.
-    Knob* ampKnobs[] = { &drive, &bass, &mid, &treble, &presence, &master };
+    Knob* ampKnobs[] = { &gate, &drive, &bass, &mid, &treble, &presence, &master };
     int x = sideMargin;
     for (auto* k : ampKnobs)
     {
@@ -195,8 +207,9 @@ void AmpForgeAudioProcessorEditor::resized()
         x += knobSize + knobGap;
     }
 
-    // Strip under the amp knobs: cabinet toggle + IR buttons.
+    // Strip under the amp knobs: cabinet toggle + voicing menu + IR buttons.
     cabButton.setBounds (sideMargin, stripY, 90, stripH);
+    cabBox.setBounds (sideMargin + 90 + 8, stripY, 130, stripH);
     resetCabButton.setBounds (getWidth() - sideMargin - 90, stripY, 90, stripH);
     loadIRButton.setBounds (getWidth() - sideMargin - 90 - 8 - 90, stripY, 90, stripH);
 

@@ -58,12 +58,22 @@ public:
         loaded->ResetAndPrewarm (sampleRate, maxBlockSize);
         const double esr = loaded->GetExpectedSampleRate();
 
+        // Normalize the model's output to a standard loudness so captures don't
+        // come in quiet (or blaring). NAM's convention is a -18 dB target.
+        float gain = 1.0f;
+        if (loaded->HasLoudness())
+        {
+            constexpr double targetLoudnessDb = -18.0;
+            gain = (float) std::pow (10.0, (targetLoudnessDb - loaded->GetLoudness()) / 20.0);
+        }
+
         {
             const juce::SpinLock::ScopedLockType sl (lock);
             model = std::move (loaded);
             modelNameStr = file.getFileNameWithoutExtension();
         }
 
+        outputGain.store (gain);
         expectedSampleRate.store (esr);
         hasModelFlag.store (true);
         return true;
@@ -96,10 +106,11 @@ public:
         double* outP = outBuf.data();
         model->process (&inP, &outP, n);
 
+        const float g = outputGain.load();
         const auto numChannels = block.getNumChannels();
         for (size_t ch = 0; ch < numChannels; ++ch)
             for (int i = 0; i < n; ++i)
-                block.setSample ((int) ch, i, (float) outBuf[(size_t) i]);
+                block.setSample ((int) ch, i, (float) outBuf[(size_t) i] * g);
 
         return true;
     }
@@ -115,5 +126,6 @@ private:
 
     std::atomic<bool>   hasModelFlag { false };
     std::atomic<double> expectedSampleRate { -1.0 };
+    std::atomic<float>  outputGain { 1.0f };
     juce::String        modelNameStr;
 };

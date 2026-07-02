@@ -11,6 +11,9 @@ namespace ids
     constexpr auto master   = "master";
     constexpr auto cabOn    = "cab_on";
     constexpr auto namOn    = "nam_on";
+    constexpr auto ampModel = "amp_model";
+    constexpr auto cabModel = "cab_model";
+    constexpr auto gate     = "gate";
 
     constexpr auto ds1On    = "ds1_on";
     constexpr auto ds1Dist  = "ds1_dist";
@@ -29,10 +32,18 @@ AmpForgeAudioProcessor::AmpForgeAudioProcessor()
 juce::AudioProcessorValueTreeState::ParameterLayout
 AmpForgeAudioProcessor::createParameterLayout()
 {
-    using FloatP = juce::AudioParameterFloat;
-    using BoolP  = juce::AudioParameterBool;
-    using Attrs  = juce::AudioParameterFloatAttributes;
+    using FloatP  = juce::AudioParameterFloat;
+    using BoolP   = juce::AudioParameterBool;
+    using ChoiceP = juce::AudioParameterChoice;
+    using Attrs   = juce::AudioParameterFloatAttributes;
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    params.push_back (std::make_unique<ChoiceP> (
+        juce::ParameterID { ids::ampModel, 1 }, "Amp",
+        juce::StringArray { "Modern", "Fender Clean", "Plexi", "JCM800", "Rectifier" }, 0));
+    params.push_back (std::make_unique<FloatP> (
+        juce::ParameterID { ids::gate, 1 }, "Gate",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
 
     // --- DS-1 distortion pedal (pre-amp) -----------------------------------
     params.push_back (std::make_unique<BoolP> (
@@ -68,6 +79,9 @@ AmpForgeAudioProcessor::createParameterLayout()
         juce::NormalisableRange<float> (-40.0f, 12.0f, 0.1f), -6.0f, Attrs().withLabel ("dB")));
     params.push_back (std::make_unique<BoolP> (
         juce::ParameterID { ids::cabOn, 1 }, "Cabinet", true));
+    params.push_back (std::make_unique<ChoiceP> (
+        juce::ParameterID { ids::cabModel, 1 }, "Cab",
+        juce::StringArray { "Modern 4x12", "Vintage 4x12" }, 0));
     params.push_back (std::make_unique<BoolP> (
         juce::ParameterID { ids::namOn, 1 }, "NAM Amp", false));
 
@@ -76,11 +90,13 @@ AmpForgeAudioProcessor::createParameterLayout()
 
 const std::vector<AmpForgeAudioProcessor::Preset>& AmpForgeAudioProcessor::getPresets()
 {
+    // amp_model indices: 0 Modern, 1 Fender Clean, 2 Plexi, 3 JCM800, 4 Rectifier.
     static const std::vector<Preset> presets = {
-        { "Clean",     { { ids::ds1On, 0.f }, { ids::drive, 4.f },  { ids::bass, 0.5f }, { ids::mid, 0.55f }, { ids::treble, 0.55f }, { ids::presence, 0.35f }, { ids::master, -6.f }, { ids::cabOn, 1.f } } },
-        { "Crunch",    { { ids::ds1On, 0.f }, { ids::drive, 18.f }, { ids::bass, 0.55f },{ ids::mid, 0.6f },  { ids::treble, 0.55f }, { ids::presence, 0.45f }, { ids::master, -8.f }, { ids::cabOn, 1.f } } },
-        { "Lead",      { { ids::ds1On, 0.f }, { ids::drive, 30.f }, { ids::bass, 0.6f }, { ids::mid, 0.7f },  { ids::treble, 0.5f },  { ids::presence, 0.5f },  { ids::master, -10.f },{ ids::cabOn, 1.f } } },
-        { "DS-1 Lead", { { ids::ds1On, 1.f }, { ids::ds1Dist, 0.75f }, { ids::ds1Tone, 0.6f }, { ids::ds1Level, 0.7f }, { ids::drive, 10.f }, { ids::bass, 0.5f }, { ids::mid, 0.5f }, { ids::treble, 0.55f }, { ids::presence, 0.5f }, { ids::master, -9.f }, { ids::cabOn, 1.f } } },
+        { "Fender Clean", { { ids::ampModel, 1.f }, { ids::ds1On, 0.f }, { ids::gate, 0.f },  { ids::drive, 4.f },  { ids::bass, 0.5f }, { ids::mid, 0.55f }, { ids::treble, 0.6f },  { ids::presence, 0.3f },  { ids::master, -6.f }, { ids::cabOn, 1.f }, { ids::cabModel, 0.f } } },
+        { "Plexi Crunch", { { ids::ampModel, 2.f }, { ids::ds1On, 0.f }, { ids::gate, 0.f },  { ids::drive, 22.f }, { ids::bass, 0.6f }, { ids::mid, 0.6f },  { ids::treble, 0.6f },  { ids::presence, 0.5f },  { ids::master, -9.f }, { ids::cabOn, 1.f }, { ids::cabModel, 1.f } } },
+        { "JCM800 Lead",  { { ids::ampModel, 3.f }, { ids::ds1On, 0.f }, { ids::gate, 0.3f }, { ids::drive, 30.f }, { ids::bass, 0.55f },{ ids::mid, 0.65f }, { ids::treble, 0.6f },  { ids::presence, 0.55f }, { ids::master, -11.f },{ ids::cabOn, 1.f }, { ids::cabModel, 0.f } } },
+        { "Rectifier",    { { ids::ampModel, 4.f }, { ids::ds1On, 0.f }, { ids::gate, 0.4f }, { ids::drive, 34.f }, { ids::bass, 0.65f },{ ids::mid, 0.4f },  { ids::treble, 0.6f },  { ids::presence, 0.5f },  { ids::master, -12.f },{ ids::cabOn, 1.f }, { ids::cabModel, 0.f } } },
+        { "DS-1 into JCM", { { ids::ampModel, 3.f }, { ids::ds1On, 1.f }, { ids::ds1Dist, 0.7f }, { ids::ds1Tone, 0.6f }, { ids::ds1Level, 0.7f }, { ids::gate, 0.3f }, { ids::drive, 18.f }, { ids::bass, 0.5f }, { ids::mid, 0.6f }, { ids::treble, 0.6f }, { ids::presence, 0.5f }, { ids::master, -10.f }, { ids::cabOn, 1.f }, { ids::cabModel, 0.f } } },
     };
     return presets;
 }
@@ -105,6 +121,7 @@ void AmpForgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
     spec.numChannels      = (juce::uint32) getTotalNumOutputChannels();
 
+    gate.prepare (sampleRate);
     pedal.prepare (spec);
     engine.prepare (spec);
     cabinet.prepare (spec);
@@ -150,6 +167,15 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // Noise gate (runs on the raw guitar before everything else).
+    gate.setAmount (apvts.getRawParameterValue (ids::gate)->load());
+
+    // Amp voicing + cabinet voicing.
+    engine.setModel (static_cast<AmpEngine::Model> (
+        (int) apvts.getRawParameterValue (ids::ampModel)->load()));
+    cabinet.setVoicing (apvts.getRawParameterValue (ids::cabModel)->load() < 0.5f
+        ? CabinetSim::Voicing::Modern4x12 : CabinetSim::Voicing::Vintage4x12);
+
     // Pedal parameters.
     pedal.setEnabled (apvts.getRawParameterValue (ids::ds1On)->load() > 0.5f);
     pedal.setDist    (apvts.getRawParameterValue (ids::ds1Dist)->load());
@@ -170,7 +196,8 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     juce::dsp::AudioBlock<float> block (buffer);
 
-    // Chain: DS-1 pedal -> [ NAM capture OR algorithmic amp ] -> cabinet -> master.
+    // Chain: gate -> DS-1 pedal -> [ NAM capture OR algorithmic amp ] -> cabinet -> master.
+    gate.process (block);
     pedal.process (block);
 
     // The NAM capture already models a whole amp, so when it runs it replaces

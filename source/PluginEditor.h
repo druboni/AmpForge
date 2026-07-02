@@ -13,8 +13,9 @@ public:
     void resized() override;
 
 private:
-    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using SliderAttachment   = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment   = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using ComboBoxAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
     struct Knob
     {
@@ -28,9 +29,13 @@ private:
     AmpForgeAudioProcessor& processor;
 
     // Amp controls.
-    Knob drive, bass, mid, treble, presence, master;
+    Knob gate, drive, bass, mid, treble, presence, master;
+    juce::ComboBox ampBox;
+    std::unique_ptr<ComboBoxAttachment> ampAttachment;
     juce::ToggleButton cabButton { "Cabinet" };
     std::unique_ptr<ButtonAttachment> cabAttachment;
+    juce::ComboBox cabBox;
+    std::unique_ptr<ComboBoxAttachment> cabModelAttachment;
     juce::TextButton loadIRButton { "Load IR..." };
     juce::TextButton resetCabButton { "Reset Cab" };
 

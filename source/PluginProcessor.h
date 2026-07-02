@@ -5,6 +5,7 @@
 #include "dsp/DistortionPedal.h"
 #include "dsp/CabinetSim.h"
 #include "dsp/NamProcessor.h"
+#include "dsp/NoiseGate.h"
 
 class AmpForgeAudioProcessor : public juce::AudioProcessor
 {
@@ -59,6 +60,7 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    NoiseGate       gate;
     DistortionPedal pedal;
     AmpEngine       engine;
     NamProcessor    nam;

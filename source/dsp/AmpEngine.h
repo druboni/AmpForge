@@ -2,25 +2,28 @@
 
 #include <juce_dsp/juce_dsp.h>
 #include <vector>
+#include "ToneStack.h"
 
 /**
-    AmpEngine — the algorithmic (non-NAM) guitar amp signal chain.
+    AmpEngine — the algorithmic (non-NAM) guitar amp.
 
     Signal flow:
-        input -> pre-drive bass cut (tighten lows before distortion)
-              -> pre-gain (drive, with power-supply sag)
+        input -> pre-drive bass cut (voicing-dependent tightness)
+              -> pre-gain (drive * voicing trim, with power-supply sag)
               -> cascaded tube-style gain stages   (oversampled 4x)
                      stage 1 (asymmetric soft clip) -> interstage DC block
                      -> stage 2 (soft clip)
-              -> 3-band tone stack (bass / mid / treble)
-              -> presence (high shelf)
+              -> interactive tone stack (Marshall / Fender network)
+              -> presence (power-amp high shelf)
 
-    The cabinet and master stages live in the processor so they are shared
-    with the NAM amp path.
+    A handful of amp "voicings" (Fender clean, Plexi, JCM800, Rectifier) change
+    the tone-stack circuit, the gain staging and the input tightness.
 */
 class AmpEngine
 {
 public:
+    enum class Model { Modern, FenderClean, Plexi, JCM800, Rectifier };
+
     void prepare (const juce::dsp::ProcessSpec& spec)
     {
         sampleRate  = spec.sampleRate;
@@ -32,22 +35,18 @@ public:
         oversampler->initProcessing (spec.maximumBlockSize);
 
         inputHP.prepare (spec);
-        toneLow.prepare (spec);
-        toneMid.prepare (spec);
-        toneHigh.prepare (spec);
         presence.prepare (spec);
-
-        *inputHP.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass (sampleRate, 95.0);
+        toneStack.prepare (spec);
 
         driveSmoothed.reset (sampleRate, 0.02);
 
-        // Interstage DC-blocker coefficient, referenced to the oversampled rate.
         const double osRate = sampleRate * (double) (1 << osFactor);
         dcR = (float) std::exp (-2.0 * juce::MathConstants<double>::pi * 18.0 / osRate);
 
         dcX1.assign ((size_t) numChannels, 0.0f);
         dcY1.assign ((size_t) numChannels, 0.0f);
 
+        applyVoicing();
         reset();
         updateFilters();
     }
@@ -58,22 +57,29 @@ public:
             oversampler->reset();
 
         inputHP.reset();
-        toneLow.reset();
-        toneMid.reset();
-        toneHigh.reset();
         presence.reset();
+        toneStack.reset();
 
         std::fill (dcX1.begin(), dcX1.end(), 0.0f);
         std::fill (dcY1.begin(), dcY1.end(), 0.0f);
         sagEnv = 0.0f;
     }
 
-    // Parameter setters ------------------------------------------------------
-    void setDriveDb   (float db)   { driveSmoothed.setTargetValue (juce::Decibels::decibelsToGain (db)); }
-    void setBass      (float v)    { bass = v;        filtersDirty = true; }
-    void setMid       (float v)    { mid = v;         filtersDirty = true; }
-    void setTreble    (float v)    { treble = v;      filtersDirty = true; }
-    void setPresence  (float v)    { presenceAmt = v; filtersDirty = true; }
+    void setDriveDb  (float db)  { driveSmoothed.setTargetValue (juce::Decibels::decibelsToGain (db)); }
+    void setBass     (float v)   { toneStack.setParams (v, midV, trebV); bassV = v; }
+    void setMid      (float v)   { toneStack.setParams (bassV, v, trebV); midV = v; }
+    void setTreble   (float v)   { toneStack.setParams (bassV, midV, v); trebV = v; }
+    void setPresence (float v)   { presenceAmt = v; filtersDirty = true; }
+
+    void setModel (Model m)
+    {
+        if (m != model)
+        {
+            model = m;
+            applyVoicing();
+            filtersDirty = true;
+        }
+    }
 
     float getLatencySamples() const
     {
@@ -88,15 +94,12 @@ public:
         const auto numChannelsBlk = block.getNumChannels();
         const auto numSamples     = block.getNumSamples();
 
-        // Pre-drive bass cut: keeps the low end tight instead of flubby once
-        // it hits the gain stages.
         {
             juce::dsp::ProcessContextReplacing<float> ctx (block);
             inputHP.process (ctx);
         }
 
-        // Power-supply "sag": louder input pulls the effective drive down a
-        // touch, then it recovers — a subtle compression/bloom.
+        // Power-supply sag.
         float sumSq = 0.0f;
         if (numSamples > 0)
             for (size_t n = 0; n < numSamples; ++n)
@@ -108,15 +111,15 @@ public:
         sagEnv += 0.2f * (rms - sagEnv);
         const float sagGain = 1.0f / (1.0f + 1.5f * sagEnv);
 
-        // Pre-gain into the non-linearity (base rate, linear).
+        // Pre-gain (drive * voicing trim), base rate.
         for (size_t n = 0; n < numSamples; ++n)
         {
-            const float drive = driveSmoothed.getNextValue() * sagGain;
+            const float drive = driveSmoothed.getNextValue() * driveTrim * sagGain;
             for (size_t ch = 0; ch < numChannelsBlk; ++ch)
                 block.setSample ((int) ch, (int) n, block.getSample ((int) ch, (int) n) * drive);
         }
 
-        // Cascaded gain stages in the oversampled domain.
+        // Cascaded gain stages, oversampled.
         auto up = oversampler->processSamplesUp (block);
         {
             const auto upCh = up.getNumChannels();
@@ -127,33 +130,21 @@ public:
                 for (size_t n = 0; n < upN; ++n)
                 {
                     float s = up.getSample ((int) ch, (int) n);
-
-                    // Stage 1: asymmetric soft clip (even harmonics).
-                    s = std::tanh (s + biasAmt) - tanhBias;
-
-                    // Interstage DC blocker (removes the offset the asymmetry adds).
-                    const float y = s - x1 + dcR * y1;
-                    x1 = s;
-                    y1 = y;
-                    s  = y;
-
-                    // Stage 2: hotter soft clip for compression/sustain.
-                    s = std::tanh (s * stage2Gain);
-
+                    s = std::tanh (s + biasAmt) - tanhBias;      // stage 1 (asymmetric)
+                    const float y = s - x1 + dcR * y1;           // interstage DC block
+                    x1 = s; y1 = y; s = y;
+                    s = std::tanh (s * stage2Gain);              // stage 2
                     up.setSample ((int) ch, (int) n, s);
                 }
-                dcX1[ch] = x1;
-                dcY1[ch] = y1;
+                dcX1[ch] = x1; dcY1[ch] = y1;
             }
         }
         oversampler->processSamplesDown (block);
 
-        // Tone stack + presence (base rate).
+        // Interactive tone stack + presence.
+        toneStack.process (block);
         {
             juce::dsp::ProcessContextReplacing<float> ctx (block);
-            toneLow.process (ctx);
-            toneMid.process (ctx);
-            toneHigh.process (ctx);
             presence.process (ctx);
         }
     }
@@ -163,43 +154,62 @@ private:
         juce::dsp::IIR::Filter<float>,
         juce::dsp::IIR::Coefficients<float>>;
 
+    void applyVoicing()
+    {
+        switch (model)
+        {
+            case Model::FenderClean:
+                toneStack.setType (ToneStack::Type::Fender);
+                driveTrim = 0.5f;  stage2Gain = 1.0f; biasAmt = 0.05f; inputHPFreq = 40.0;  break;
+            case Model::Plexi:
+                toneStack.setType (ToneStack::Type::Marshall);
+                driveTrim = 1.3f;  stage2Gain = 1.6f; biasAmt = 0.20f; inputHPFreq = 110.0; break;
+            case Model::JCM800:
+                toneStack.setType (ToneStack::Type::Marshall);
+                driveTrim = 2.2f;  stage2Gain = 2.4f; biasAmt = 0.25f; inputHPFreq = 130.0; break;
+            case Model::Rectifier:
+                toneStack.setType (ToneStack::Type::Marshall);
+                driveTrim = 3.0f;  stage2Gain = 2.6f; biasAmt = 0.20f; inputHPFreq = 150.0; break;
+            case Model::Modern:
+            default:
+                toneStack.setType (ToneStack::Type::Marshall);
+                driveTrim = 1.0f;  stage2Gain = 1.8f; biasAmt = 0.15f; inputHPFreq = 95.0;  break;
+        }
+        tanhBias = std::tanh (biasAmt);
+        toneStack.setParams (bassV, midV, trebV);
+    }
+
     void updateFilters()
     {
-        const auto db = [] (float v) { return juce::jmap (v, 0.0f, 1.0f, -15.0f, 15.0f); };
         using Coefs = juce::dsp::IIR::Coefficients<float>;
-
-        *toneLow.state  = *Coefs::makeLowShelf  (sampleRate, 120.0,  0.707,
-                              juce::Decibels::decibelsToGain (db (bass)));
-        *toneMid.state  = *Coefs::makePeakFilter (sampleRate, 750.0,  0.707,
-                              juce::Decibels::decibelsToGain (db (mid)));
-        *toneHigh.state = *Coefs::makeHighShelf (sampleRate, 3000.0, 0.707,
-                              juce::Decibels::decibelsToGain (db (treble)));
+        *inputHP.state  = *Coefs::makeHighPass (sampleRate, inputHPFreq);
         *presence.state = *Coefs::makeHighShelf (sampleRate, 5000.0, 0.707,
                               juce::Decibels::decibelsToGain (
                                   juce::jmap (presenceAmt, 0.0f, 1.0f, 0.0f, 10.0f)));
         filtersDirty = false;
     }
 
-    static constexpr size_t osFactor = 2; // 2^2 = 4x oversampling
-
-    static constexpr float biasAmt    = 0.15f;
-    static constexpr float stage2Gain = 1.8f;
-    const float tanhBias = std::tanh (biasAmt);
+    static constexpr size_t osFactor = 2; // 4x
 
     double sampleRate  = 44100.0;
     int    numChannels = 2;
+    Model  model = Model::Modern;
 
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
 
-    juce::SmoothedValue<float> driveSmoothed  { 1.0f };
+    juce::SmoothedValue<float> driveSmoothed { 1.0f };
 
-    float bass = 0.5f, mid = 0.5f, treble = 0.5f, presenceAmt = 0.3f;
-    float sagEnv = 0.0f;
-    bool  filtersDirty = true;
+    // Per-voicing parameters.
+    float  driveTrim = 1.0f, stage2Gain = 1.8f, biasAmt = 0.15f, tanhBias = std::tanh (0.15f);
+    double inputHPFreq = 95.0;
 
-    // Interstage DC-blocker state (per channel).
+    float  bassV = 0.5f, midV = 0.5f, trebV = 0.5f, presenceAmt = 0.3f;
+    float  sagEnv = 0.0f;
+    bool   filtersDirty = true;
+
     std::vector<float> dcX1, dcY1;
     float dcR = 0.999f;
 
-    Filter inputHP, toneLow, toneMid, toneHigh, presence;
+    Filter inputHP, presence;
+    ToneStack toneStack;
 };

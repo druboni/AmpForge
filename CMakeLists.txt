@@ -86,7 +86,11 @@ target_compile_definitions(AmpForge PUBLIC
 )
 
 target_link_libraries(AmpForge PRIVATE
-    nam
+    # Whole-archive link: NAM's model architectures (WaveNet, SlimmableContainer
+    # for A2 captures, LSTM, ConvNet) self-register via static initializers in
+    # separate object files. Without whole-archive the linker drops those files
+    # and get_dsp() reports "No config parser registered for architecture: ...".
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,nam>"
     juce::juce_audio_utils
     juce::juce_dsp
     PUBLIC

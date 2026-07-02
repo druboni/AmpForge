@@ -37,17 +37,22 @@ sync.
 
 ## Controls
 
-**Amp**
+**Amp** — pick a voicing from the **Amp** menu: *Modern, Fender Clean, Plexi,
+JCM800, Rectifier*. Each changes the tone-stack circuit, gain staging and input
+tightness.
 
-| Knob     | What it does                                             |
+| Control  | What it does                                             |
 |----------|----------------------------------------------------------|
-| Drive    | Pre-gain into the tube waveshaper                        |
-| Bass     | Low-shelf tone control                                   |
-| Mid      | Midrange peak control                                    |
-| Treble   | High-shelf tone control                                  |
-| Presence | Extra high-end sparkle after the tone stack             |
+| Gate     | Noise gate before the amp (0 = off) — tames hiss on high gain |
+| Drive    | Pre-gain into the cascaded tube stages                   |
+| Bass/Mid/Treble | Interactive passive **tone stack** — modelled from the real Marshall (JCM800) / Fender component network, so the controls load each other like the actual circuit |
+| Presence | Power-amp high-shelf sparkle                             |
 | Master   | Output level                                             |
-| Cab      | Toggle the convolution cabinet on/off                    |
+| Cabinet  | Toggle the convolution cab; **Cab** menu picks Modern / Vintage 4x12 voicing |
+
+The Bass/Mid/Treble stack uses the actual analog transfer function (component
+values + coefficients from the Faust tonestacks library), discretised with the
+bilinear transform — this is what makes the JCM800 voicing sound like a Marshall.
 
 **DS-1 Distortion pedal** (toggle to enable; runs *before* the amp)
 
