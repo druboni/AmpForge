@@ -34,9 +34,9 @@ namespace
     constexpr int driveTop  = namY + namH + 12;
     constexpr int driveRowW = 3 * modW + 2 * modGap;
 
-    // EFFECTS panel (4 modules: Comp | Chorus | Delay | Reverb).
+    // EFFECTS panel (5 modules: Comp | Double | Chorus | Delay | Reverb).
     constexpr int fxTop  = driveTop + panelH + 12;
-    constexpr int fxRowW = 4 * modW + 3 * modGap;
+    constexpr int fxRowW = 5 * modW + 4 * modGap;
 
     // Y offsets within a panel, given its top.
     constexpr int panelToggleY (int top) { return top + panelHeaderH; }
@@ -127,6 +127,13 @@ AmpForgeAudioProcessorEditor::AmpForgeAudioProcessorEditor (AmpForgeAudioProcess
     addAndMakeVisible (revButton);
     revButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xff59b6e8));
     revAttachment = std::make_unique<ButtonAttachment> (processor.apvts, "rev_on", revButton);
+
+    addKnob (dblAmount, "dbl_amount", "Amt",   modKnob);
+    addKnob (dblWidth,  "dbl_width",  "Width", modKnob);
+    addKnob (dblDetune, "dbl_detune", "Dtune", modKnob);
+    addAndMakeVisible (dblButton);
+    dblButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xfff2a65a));
+    dblAttachment = std::make_unique<ButtonAttachment> (processor.apvts, "dbl_on", dblButton);
 
     // Cabinet IR buttons.
     addAndMakeVisible (loadIRButton);
@@ -279,7 +286,7 @@ void AmpForgeAudioProcessorEditor::paint (juce::Graphics& g)
     };
 
     drawPanel (driveTop, juce::CharPointer_UTF8 ("DRIVE / DISTORTION  (SD-1 \xc2\xb7 DS-1 \xc2\xb7 DS-2)"), 3, juce::Colour (0xffff7b3d));
-    drawPanel (fxTop,    "EFFECTS",                                          4, juce::Colour (0xff5ec8ff));
+    drawPanel (fxTop,    "EFFECTS",                                          5, juce::Colour (0xff5ec8ff));
 }
 
 void AmpForgeAudioProcessorEditor::resized()
@@ -337,9 +344,10 @@ void AmpForgeAudioProcessorEditor::resized()
     ds2Button.setBounds (ds2x, panelToggleY (driveTop), 62, panelToggleH);
     ds2ModeBox.setBounds (ds2x + 66, panelToggleY (driveTop), modW - 66, panelToggleH);
 
-    // EFFECTS panel: Comp | Chorus | Delay | Reverb.
+    // EFFECTS panel: Comp | Double | Chorus | Delay | Reverb.
     layoutModule (fxTop, 0, { &compButton, { &compThresh, &compRatio, &compMakeup } });
-    layoutModule (fxTop, 1, { &choButton,  { &choRate,    &choDepth,  &choMix     } });
-    layoutModule (fxTop, 2, { &dlyButton,  { &dlyTime,    &dlyFb,     &dlyMix     } });
-    layoutModule (fxTop, 3, { &revButton,  { &revSize,    &revDamp,   &revMix     } });
+    layoutModule (fxTop, 1, { &dblButton,  { &dblAmount,  &dblWidth,  &dblDetune  } });
+    layoutModule (fxTop, 2, { &choButton,  { &choRate,    &choDepth,  &choMix     } });
+    layoutModule (fxTop, 3, { &dlyButton,  { &dlyTime,    &dlyFb,     &dlyMix     } });
+    layoutModule (fxTop, 4, { &revButton,  { &revSize,    &revDamp,   &revMix     } });
 }

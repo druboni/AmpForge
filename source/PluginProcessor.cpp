@@ -39,6 +39,12 @@ namespace ids
     constexpr auto compRatio  = "comp_ratio";
     constexpr auto compMakeup = "comp_makeup";
 
+    // Doubler (post-cabinet — stereo double-tracker).
+    constexpr auto dblOn     = "dbl_on";
+    constexpr auto dblAmount = "dbl_amount";
+    constexpr auto dblWidth  = "dbl_width";
+    constexpr auto dblDetune = "dbl_detune";
+
     // Chorus (post-cabinet).
     constexpr auto choOn    = "cho_on";
     constexpr auto choRate  = "cho_rate";
@@ -164,6 +170,19 @@ AmpForgeAudioProcessor::createParameterLayout()
     params.push_back (std::make_unique<BoolP> (
         juce::ParameterID { ids::namOn, 1 }, "NAM Amp", false));
 
+    // --- Doubler (post-cabinet — stereo double-tracker) --------------------
+    params.push_back (std::make_unique<BoolP> (
+        juce::ParameterID { ids::dblOn, 1 }, "Doubler On", false));
+    params.push_back (std::make_unique<FloatP> (
+        juce::ParameterID { ids::dblAmount, 1 }, "Doubler Amount",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.7f));
+    params.push_back (std::make_unique<FloatP> (
+        juce::ParameterID { ids::dblWidth, 1 }, "Doubler Width",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.85f));
+    params.push_back (std::make_unique<FloatP> (
+        juce::ParameterID { ids::dblDetune, 1 }, "Doubler Detune",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.4f));
+
     // --- Chorus (post-cabinet) ---------------------------------------------
     params.push_back (std::make_unique<BoolP> (
         juce::ParameterID { ids::choOn, 1 }, "Chorus On", false));
@@ -276,6 +295,7 @@ void AmpForgeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     ds2.prepare (spec);
     engine.prepare (spec);
     cabinet.prepare (spec);
+    doubler.prepare (spec);
     chorus.prepare (spec);
     delay.prepare (spec);
     reverb.prepare (spec);
@@ -360,6 +380,11 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     ds2.setMode    ((int) apvts.getRawParameterValue (ids::ds2Mode)->load());
 
     // Post-amp effects parameters.
+    doubler.setEnabled (apvts.getRawParameterValue (ids::dblOn)->load() > 0.5f);
+    doubler.setAmount  (apvts.getRawParameterValue (ids::dblAmount)->load());
+    doubler.setWidth   (apvts.getRawParameterValue (ids::dblWidth)->load());
+    doubler.setDetune  (apvts.getRawParameterValue (ids::dblDetune)->load());
+
     chorus.setEnabled (apvts.getRawParameterValue (ids::choOn)->load() > 0.5f);
     chorus.setRate    (apvts.getRawParameterValue (ids::choRate)->load());
     chorus.setDepth   (apvts.getRawParameterValue (ids::choDepth)->load());
@@ -390,7 +415,7 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     juce::dsp::AudioBlock<float> block (buffer);
 
     // Chain: gate -> compressor -> overdrive -> DS-1 -> DS-2 -> [ NAM capture OR
-    //        algorithmic amp ] -> cabinet -> chorus -> delay -> reverb -> master.
+    //        algorithmic amp ] -> cabinet -> doubler -> chorus -> delay -> reverb -> master.
     gate.process (block);
     compressor.process (block);
     overdrive.process (block);
@@ -406,6 +431,7 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     cabinet.process (block, cabBypass);
 
     // Post-amp effects (studio / FX-loop style).
+    doubler.process (block);
     chorus.process (block);
     delay.process (block);
     reverb.process (block);

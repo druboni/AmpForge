@@ -9,6 +9,7 @@
 #include "dsp/NamProcessor.h"
 #include "dsp/NoiseGate.h"
 #include "dsp/CompressorFX.h"
+#include "dsp/DoublerFX.h"
 #include "dsp/ChorusFX.h"
 #include "dsp/DelayFX.h"
 #include "dsp/ReverbFX.h"
@@ -74,6 +75,7 @@ private:
     AmpEngine       engine;
     NamProcessor    nam;
     CabinetSim      cabinet;
+    DoublerFX       doubler;
     ChorusFX        chorus;
     DelayFX         delay;
     ReverbFX        reverb;

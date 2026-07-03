@@ -79,6 +79,10 @@ private:
     juce::ToggleButton revButton { "Reverb" };
     std::unique_ptr<ButtonAttachment> revAttachment;
 
+    Knob dblAmount, dblWidth, dblDetune;
+    juce::ToggleButton dblButton { "Double" };
+    std::unique_ptr<ButtonAttachment> dblAttachment;
+
     // Presets.
     juce::ComboBox presetBox;
 
