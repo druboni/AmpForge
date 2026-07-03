@@ -56,13 +56,21 @@ target_compile_features(nam PUBLIC cxx_std_20)
 target_compile_definitions(nam PUBLIC NAM_ENABLE_A2_FAST)
 
 # ---------------------------------------------------------------------------
-# The plugin target. Builds VST3, AU and a Standalone app.
+# The plugin target. Builds VST3 + Standalone everywhere; AU is macOS-only
+# (Audio Unit is an Apple format and cannot be built by MSVC on Windows).
 # ---------------------------------------------------------------------------
+if(APPLE)
+    set(AMPFORGE_FORMATS VST3 AU Standalone)
+else()
+    set(AMPFORGE_FORMATS VST3 Standalone)
+endif()
+
 juce_add_plugin(AmpForge
     COMPANY_NAME              "Brian Smith"
     PLUGIN_MANUFACTURER_CODE  Bsmi        # 4 chars, one uppercase
     PLUGIN_CODE               Ampf        # 4 chars, one uppercase; unique per plugin
-    FORMATS                   VST3 AU Standalone
+    BUNDLE_ID                 com.briansmith.ampforge   # no spaces (COMPANY_NAME has one)
+    FORMATS                   ${AMPFORGE_FORMATS}
     PRODUCT_NAME              "AmpForge"
     IS_SYNTH                  FALSE
     NEEDS_MIDI_INPUT          FALSE

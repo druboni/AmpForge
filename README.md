@@ -73,27 +73,44 @@ synthesized 4×12-style impulse response. To use your own measured IR, call
 
 ## Building
 
-Requires CMake ≥ 3.22 and a C++17 compiler. JUCE is fetched automatically by CMake.
+Requires CMake ≥ 3.22 and a C++20 compiler. JUCE, NAM core and Eigen are all
+fetched automatically by CMake on the first configure.
+
+Formats built per platform: **VST3 + Standalone** everywhere; **AU** on macOS
+only (Audio Unit is Apple-specific).
+
+### macOS / Linux
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-The first configure downloads JUCE (pinned in `CMakeLists.txt`). Because
-`COPY_PLUGIN_AFTER_BUILD` is on, the VST3/AU are installed into your user
-plugin folders automatically:
+### Windows (Visual Studio 2022)
 
-- **VST3:** `~/Library/Audio/Plug-Ins/VST3/`
-- **AU:** `~/Library/Audio/Plug-Ins/Components/`
+```powershell
+cmake -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+```
+
+If `cmake` isn't on your PATH, the one bundled with Visual Studio works:
+`"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"`.
+
+Because `COPY_PLUGIN_AFTER_BUILD` is on, the plugin is installed into your user
+plugin folder automatically:
+
+- **VST3 (macOS):** `~/Library/Audio/Plug-Ins/VST3/`
+- **AU (macOS):** `~/Library/Audio/Plug-Ins/Components/`
+- **VST3 (Windows):** `C:\Program Files\Common Files\VST3\`
 
 Rescan plugins in your DAW and load **AmpForge**. To try it without a DAW, run
-the Standalone build in `build/AmpForge_artefacts/`.
+the Standalone build in `build/AmpForge_artefacts/Release/Standalone/`
+(`AmpForge.exe` on Windows).
 
-Validate the AU (as Logic does) with:
+On macOS, validate the AU (as Logic does) with:
 
 ```bash
-auval -v aufx Ampf Drbn
+auval -v aufx Ampf Bsmi
 ```
 
 ## Project layout
