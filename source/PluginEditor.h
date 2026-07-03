@@ -24,7 +24,8 @@ private:
         std::unique_ptr<SliderAttachment> attachment;
     };
 
-    void addKnob (Knob& knob, const juce::String& paramID, const juce::String& text);
+    void addKnob (Knob& knob, const juce::String& paramID, const juce::String& text,
+                  int textBoxWidth = 84);
 
     AmpForgeAudioProcessor& processor;
 
@@ -46,10 +47,37 @@ private:
     juce::Label namStatus;
     void updateNamStatus();
 
-    // DS-1 pedal controls.
+    // Drive pedals (all pre-amp): Overdrive (SD-1) | DS-1 | DS-2.
+    Knob odDrive, odTone, odLevel;
+    juce::ToggleButton odButton { "OD" };
+    std::unique_ptr<ButtonAttachment> odAttachment;
+
     Knob dist, pedalTone, pedalLevel;
-    juce::ToggleButton ds1Button { "DS-1 On" };
+    juce::ToggleButton ds1Button { "DS-1" };
     std::unique_ptr<ButtonAttachment> ds1Attachment;
+
+    Knob ds2Dist, ds2Tone, ds2Level;
+    juce::ToggleButton ds2Button { "DS-2" };
+    std::unique_ptr<ButtonAttachment> ds2Attachment;
+    juce::ComboBox ds2ModeBox;
+    std::unique_ptr<ComboBoxAttachment> ds2ModeAttachment;
+
+    // FX modules (compressor is pre-amp; chorus/delay/reverb are post-amp).
+    Knob compThresh, compRatio, compMakeup;
+    juce::ToggleButton compButton { "Comp" };
+    std::unique_ptr<ButtonAttachment> compAttachment;
+
+    Knob choRate, choDepth, choMix;
+    juce::ToggleButton choButton { "Chorus" };
+    std::unique_ptr<ButtonAttachment> choAttachment;
+
+    Knob dlyTime, dlyFb, dlyMix;
+    juce::ToggleButton dlyButton { "Delay" };
+    std::unique_ptr<ButtonAttachment> dlyAttachment;
+
+    Knob revSize, revDamp, revMix;
+    juce::ToggleButton revButton { "Reverb" };
+    std::unique_ptr<ButtonAttachment> revAttachment;
 
     // Presets.
     juce::ComboBox presetBox;

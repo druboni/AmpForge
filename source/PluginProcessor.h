@@ -2,10 +2,16 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/AmpEngine.h"
+#include "dsp/OverdrivePedal.h"
 #include "dsp/DistortionPedal.h"
+#include "dsp/DS2Pedal.h"
 #include "dsp/CabinetSim.h"
 #include "dsp/NamProcessor.h"
 #include "dsp/NoiseGate.h"
+#include "dsp/CompressorFX.h"
+#include "dsp/ChorusFX.h"
+#include "dsp/DelayFX.h"
+#include "dsp/ReverbFX.h"
 
 class AmpForgeAudioProcessor : public juce::AudioProcessor
 {
@@ -61,10 +67,16 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     NoiseGate       gate;
+    CompressorFX    compressor;
+    OverdrivePedal  overdrive;
     DistortionPedal pedal;
+    DS2Pedal        ds2;
     AmpEngine       engine;
     NamProcessor    nam;
     CabinetSim      cabinet;
+    ChorusFX        chorus;
+    DelayFX         delay;
+    ReverbFX        reverb;
 
     juce::SmoothedValue<float> masterSmoothed { 1.0f };
     double currentSampleRate = 48000.0;
