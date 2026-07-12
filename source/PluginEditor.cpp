@@ -211,9 +211,31 @@ AmpForgeAudioProcessorEditor::AmpForgeAudioProcessorEditor (AmpForgeAudioProcess
             processor.applyPreset (idx);
     };
 
+    // Standalone-only: audio starts muted for feedback safety; this button
+    // goes live. Hidden entirely when hosted in a DAW.
+    if (processor.isStandalone())
+    {
+        addAndMakeVisible (audioEnableButton);
+        audioEnableButton.onClick = [this]
+        {
+            processor.setOutputMuted (! processor.isOutputMuted());
+            updateAudioEnableButton();
+        };
+        updateAudioEnableButton();
+    }
+
     const int ampRowW  = 7 * knobSize + 6 * knobGap;
     const int contentW = juce::jmax (ampRowW, juce::jmax (driveRowW, fxRowW));
     setSize (sideMargin * 2 + contentW, fxTop + panelH + sideMargin);
+}
+
+void AmpForgeAudioProcessorEditor::updateAudioEnableButton()
+{
+    const bool muted = processor.isOutputMuted();
+    audioEnableButton.setButtonText (muted ? juce::CharPointer_UTF8 ("\xf0\x9f\x94\x87  MUTED \xe2\x80\x94 Click to Enable Audio")
+                                           : juce::CharPointer_UTF8 ("\xf0\x9f\x94\x8a  Audio Live"));
+    audioEnableButton.setColour (juce::TextButton::buttonColourId,
+                                 muted ? juce::Colour (0xffb23a3a) : juce::Colour (0xff2f7d3a));
 }
 
 void AmpForgeAudioProcessorEditor::addKnob (Knob& knob,
@@ -294,6 +316,15 @@ void AmpForgeAudioProcessorEditor::resized()
     // Header menus, right side: Amp model + Presets.
     presetBox.setBounds (getWidth() - sideMargin - 150, 16, 150, 26);
     ampBox.setBounds (getWidth() - sideMargin - 150 - 8 - 150, 16, 150, 26);
+
+    // Standalone audio-enable button: centred in the header between the title
+    // and the menus.
+    if (processor.isStandalone())
+    {
+        const int bx = sideMargin + 210;
+        const int bw = juce::jmax (240, ampBox.getX() - 12 - bx);
+        audioEnableButton.setBounds (bx, 16, juce::jmin (300, bw), 26);
+    }
 
     // Amp knob row.
     Knob* ampKnobs[] = { &gate, &drive, &bass, &mid, &treble, &presence, &master };

@@ -444,6 +444,11 @@ void AmpForgeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         for (int ch = 0; ch < numOut; ++ch)
             buffer.setSample (ch, i, buffer.getSample (ch, i) * g);
     }
+
+    // Standalone launch safety: output stays silent until the user clicks
+    // "Enable Audio" in the editor. Never engages when hosted in a DAW.
+    if (outputMuted.load())
+        buffer.clear();
 }
 
 juce::AudioProcessorEditor* AmpForgeAudioProcessor::createEditor()

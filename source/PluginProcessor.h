@@ -61,6 +61,14 @@ public:
     double namExpectedSampleRate()         { return nam.getExpectedSampleRate(); }
     double getCurrentSampleRate() const    { return currentSampleRate; }
 
+    // Standalone safety: when running as the standalone app (no DAW host),
+    // the output starts muted so a shared input/output device can't feed back
+    // through the speakers on launch. The editor shows an "Enable Audio" button.
+    // In a DAW (VST3/AU) this never engages.
+    bool isStandalone()          const { return standalone; }
+    bool isOutputMuted()         const { return outputMuted.load(); }
+    void setOutputMuted (bool m)       { outputMuted.store (m); }
+
     // Public so the editor can attach controls to it.
     juce::AudioProcessorValueTreeState apvts;
 
@@ -82,6 +90,9 @@ private:
 
     juce::SmoothedValue<float> masterSmoothed { 1.0f };
     double currentSampleRate = 48000.0;
+
+    const bool        standalone   = (wrapperType == wrapperType_Standalone);
+    std::atomic<bool> outputMuted  { standalone }; // muted on launch only in standalone
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AmpForgeAudioProcessor)
 };

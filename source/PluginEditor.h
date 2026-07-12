@@ -86,6 +86,10 @@ private:
     // Presets.
     juce::ComboBox presetBox;
 
+    // Standalone-only: muted-on-launch safety button.
+    juce::TextButton audioEnableButton;
+    void updateAudioEnableButton();
+
     std::unique_ptr<juce::FileChooser> fileChooser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AmpForgeAudioProcessorEditor)
