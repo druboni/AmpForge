@@ -465,8 +465,23 @@ void AmpForgeAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 void AmpForgeAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
+    {
         if (xml->hasTagName (apvts.state.getType()))
+        {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+
+            // Reload the NAM capture that was in use when the state was saved
+            // (so the standalone remembers it across launches).
+            const auto namPath = apvts.state.getProperty ("namFilePath").toString();
+            if (namPath.isNotEmpty())
+            {
+                const juce::File f (namPath);
+                juce::String error;
+                if (f.existsAsFile())
+                    nam.loadModel (f, error);
+            }
+        }
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

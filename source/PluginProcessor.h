@@ -54,8 +54,19 @@ public:
 
     // NAM amp captures (.nam from tone3000.com etc). loadNam() is heavy —
     // call it from the message thread.
-    bool loadNam (const juce::File& f, juce::String& error) { return nam.loadModel (f, error); }
-    void clearNam()                        { nam.clear(); }
+    bool loadNam (const juce::File& f, juce::String& error)
+    {
+        const bool ok = nam.loadModel (f, error);
+        // Remember the path so it reloads on the next launch (persisted in state).
+        if (ok)
+            apvts.state.setProperty ("namFilePath", f.getFullPathName(), nullptr);
+        return ok;
+    }
+    void clearNam()
+    {
+        nam.clear();
+        apvts.state.setProperty ("namFilePath", juce::String(), nullptr);
+    }
     bool namHasModel()                     { return nam.hasModel(); }
     juce::String namModelName()            { return nam.getModelName(); }
     double namExpectedSampleRate()         { return nam.getExpectedSampleRate(); }
