@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- rounded square body -->
+  <rect x="96" y="96" width="832" height="832" rx="196" ry="196" fill="#17171b" stroke="#3a3a46" stroke-width="6"/>
+  <rect x="96" y="96" width="832" height="416" rx="196" ry="196" fill="#20202a" opacity="0.45"/>
+
+  <!-- speaker surround (outer ring) -->
+  <circle cx="512" cy="512" r="312" fill="#111114" stroke="#e0a030" stroke-width="22"/>
+  <circle cx="512" cy="512" r="270" fill="none" stroke="#5a4420" stroke-width="10"/>
+
+  <!-- cone -->
+  <circle cx="512" cy="512" r="206" fill="#e0a030"/>
+  <circle cx="512" cy="512" r="206" fill="none" stroke="#b57e22" stroke-width="6"/>
+
+  <!-- lightning bolt (solid, high-contrast cream over the amber cone) -->
+  <polygon points="560,300 410,556 502,556 456,730 632,452 526,452 606,300"
+           fill="#fff4d6" stroke="#5f2f00" stroke-width="14" stroke-linejoin="round"/>
+</svg>

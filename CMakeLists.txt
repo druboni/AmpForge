@@ -71,6 +71,8 @@ juce_add_plugin(AmpForge
     PLUGIN_CODE               Ampf        # 4 chars, one uppercase; unique per plugin
     BUNDLE_ID                 com.briansmith.ampforge   # no spaces (COMPANY_NAME has one)
     FORMATS                   ${AMPFORGE_FORMATS}
+    ICON_BIG                  "${CMAKE_CURRENT_SOURCE_DIR}/assets/AmpForge.png"
+    ICON_SMALL                "${CMAKE_CURRENT_SOURCE_DIR}/assets/AmpForge.png"
     PRODUCT_NAME              "AmpForge"
     IS_SYNTH                  FALSE
     NEEDS_MIDI_INPUT          FALSE
